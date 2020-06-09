@@ -1,0 +1,194 @@
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8"/>
+<title>拍照上传</title>
+<style type="text/css">
+   @CHARSET "UTF-8";
+
+.index__tips{
+	width: 100%;
+	color: red;
+	font-size: 16px;
+	font-family: "microsoft yahei";
+	text-align: center;
+}
+
+.index__title{
+	font-size: 20px;
+	font-family: "microsoft yahei";
+	margin: 0 auto;
+	width: auto;
+	text-align: center;
+	padding: 10px 0 15px 0;
+}
+
+.index__video-panel{
+	width: 450px;
+	height: 300px;
+	padding:0;border:0;
+	z-index: 0;
+	margin: 0 auto;
+}
+
+.index__video{
+	width:450px;
+	height:300px;
+	position: relative;
+	z-index: 0;
+	/* float:left; */
+}
+
+.index__video-over{
+	/* float:left; */
+	position: relative;
+	z-index:1;
+	margin:-250px 0 0 125px;
+}
+
+.index__video-over-button{
+	position: relative;
+	z-index:1;
+	color: white;
+	background-color:#002FA7;
+	width: 100px;
+	height: 30px;
+	line-height: 30px;
+	margin:-40px 0 0 175px;
+	text-align: center;
+	cursor: pointer;
+}
+
+
+</style>
+<script  src="/webjars/jquery/jquery.js"></script>
+</head>
+<script type="text/javascript">
+/**
+ * 拍照上传图片
+ */
+var indexObj = {};
+
+indexObj.tips = "没有检测到设备，请确保开启摄像头。";
+
+// begin 显示摄像头的录像。
+navigator.getUserMedia = navigator.getUserMedia ||
+		navigator.webkitGetUserMedia ||
+		navigator.mozGetUserMedia;
+
+if (navigator.getUserMedia) {
+	navigator.getUserMedia({ audio: true, video: { width: 800, height: 450 } },
+	function(stream) {
+		var video = document.getElementById("index__video");
+		video.srcObject = stream;
+		console.log("stream active", stream)
+		video.onloadedmetadata = function(e) {
+			video.play();
+		};
+	},
+	function(err) {
+		console.log("The following error occurred: " + err.name);
+		document.getElementById("index__tips").innerHTML = indexObj.tips;
+	}
+);
+} else {
+	console.log("getUserMedia not supported");
+	document.getElementById("index__tips").innerHTML = indexObj.tips;
+}
+// end 显示摄像头的录像。
+
+
+
+indexObj.uploadImg = function (){
+	var canvas = document.getElementById("index__canvas");
+	var video = document.getElementById("index__video");
+	if (0 == video.videoWidth) {
+		document.getElementById("index__tips").innerHTML = indexObj.tips;
+		return;
+	}
+	// 让canvas和视频一样宽高。
+	var w = video.videoWidth;
+	var h = video.videoHeight;
+	canvas.width = w;
+	canvas.height = h;
+	// 把video标签中的画面，画到canvas中。
+	var ctx = canvas.getContext('2d');
+	ctx.drawImage(video, 0, 0, w, h);
+	// 把canvas中的图像转换成png图片文件的Base64字符串。
+	var img = canvas.toDataURL('image/png')
+	var imgStr = canvas.toDataURL('image/png').split("base64,")[1];
+	// 获得用户ID
+	alert(1)
+	var userId = document.getElementById("index__user-id").value;
+	//, {"userId":userId, "imgStr": imgStr}
+    $.post("../ocr/ocrImg1",imgStr,function(res){
+     	alert(res)
+    },"text");
+    //	axios.post("../ocr/ocr")
+	//.then(function(res){
+	//	alert("上传成功")
+	//}).catch(function(error){
+	//	console.error(error);
+	//	alert("失败")
+	//})
+}
+var i=0
+
+/**
+*base64_image_content base64图片内容
+*new_file 保存地址
+*/
+function base64_image_content($base64_image_content,$new_file){
+    //匹配出图片的格式
+    alert($base64_image_content)
+    alert($result)
+    if (preg_match('/^(data:\s*image\/(\w+);base64,)/', $base64_image_content, $result)){
+        if (file_put_contents($new_file, base64_decode(str_replace($result[1], '', $base64_image_content)))){
+            return $new_file;
+        }else{
+            return false;
+        }
+    }else{
+        return false;
+    }
+}
+
+
+var time = window.setInterval(
+   function(){  
+	   if (i==60){
+		   window.clearInterval(intervalId);
+	   }
+	   i++
+	   indexObj.uploadImg();
+    }
+,10000)
+</script>
+<body>
+	<div class="index__tips" id="index__tips"></div>
+	<div class="index__title">请将您的脸部正面放置于下方提示区域，并点击“拍照”按钮。</div>
+	<div class="index__video-panel">
+		<!-- 显示摄像头拍摄到的视频 -->
+		<video id="index__video" class="index__video"></video>
+		<!-- 视频上的提示框 -->
+		<svg width="200" height="200" class="index__video-over">
+			<!-- 克莱因蓝 #002FA7 -->
+			<polyline  points="5,50 5,5 50,5" fill-opacity="0"
+				style="stroke:#002FA7;stroke-width:10"/>
+			<polyline  points="5,150 5,195 50,195"  fill-opacity="0"
+				style="stroke:#002FA7;stroke-width:10"/>
+			<polyline  points="155,5 195,5 195,45"  fill-opacity="0"
+				style="stroke:#002FA7;stroke-width:10"/>
+			<polyline  points="155,195 195,195 195,155"  fill-opacity="0"
+				style="stroke:#002FA7;stroke-width:10"/>
+		</svg>
+		<!-- 视频上的拍照按钮 -->
+		<div class="index__video-over-button" onclick="indexObj.uploadImg()">拍照并上传</div>
+	</div>
+	<!-- 用户ID -->
+	<input type="hidden" th:value="${userId}" id="index__user-id"/>
+	<!-- 用于给video标签截图的画布 -->
+	<canvas id="index__canvas" style="display:none;"></canvas>
+	
+
+</body>
+</html>
